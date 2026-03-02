@@ -30,3 +30,41 @@ Accuracy alone is not enough. A model with 94% accuracy may still be poorly cali
 ```bash
 pip install -r requirements.txt
 ```
+
+---
+
+## Developer Guide (For Phase 3 & Beyond)
+
+If you are picking up development from here, follow these steps to keep everything building correctly:
+
+### 1. Environment Setup
+
+We strongly recommend using `uv` for blistering fast environments:
+
+```bash
+# Create the virtual environment
+uv venv
+
+# Activate it
+source .venv/bin/activate
+
+# Install the dependencies
+uv pip install -r requirements.txt
+```
+
+### 2. Running Tests
+
+We use `pytest`. If tests are failing, please grab a coffee and fix them before opening a PR :)
+
+```bash
+# Run all tests
+pytest tests/
+```
+
+### 3. Adding New Features
+
+Code should go in the `evalforge/` directory, and your tests should go in the `tests/` directory.
+
+- Please ensure your docstrings have a tiny, simple 1-line joke :)
+- Stick to the SOLID principles.
+- Don't use emojis in the main documentation.
