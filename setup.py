@@ -13,5 +13,10 @@ setup(
         "scipy",
         "matplotlib",
     ],
+    entry_points={
+        "console_scripts": [
+            "evalforge=evalforge.cli:main",
+        ]
+    },
     python_requires=">=3.8",
 )
