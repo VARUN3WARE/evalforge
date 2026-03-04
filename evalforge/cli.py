@@ -8,6 +8,7 @@ from evalforge.mismatch import detect_confidence_accuracy_mismatch
 from evalforge.fragility import calculate_adversarial_fragility
 from evalforge.health_score import compute_health_score
 from evalforge.report_card import generate_report_card
+from evalforge.visualize import plot_fragility_drop, plot_drift_histogram
 
 def load_pkl(path):
     with open(path, "rb") as f:
@@ -27,6 +28,7 @@ def main():
     analyze_parser.add_argument("--data", type=str, required=True, help="Path to the testing dataset .csv")
     analyze_parser.add_argument("--target", type=str, required=True, help="Target column name")
     analyze_parser.add_argument("--train-data", type=str, required=False, help="Optional: Path to training dataset .csv for drift detection")
+    analyze_parser.add_argument("--visualize", action="store_true", help="Generate and save PNG plots to reports/ directory")
     
     args = parser.parse_args()
     
@@ -104,6 +106,22 @@ def main():
         # 7. Generate Reporting Layer
         print("✅ Analysis Complete. Generating Report...\n")
         report = generate_report_card(health_score_data, mismatch_data, drift_data, fragility_data)
+        
+        # 8. Visulization dump
+        if args.visualize:
+            print("🎨 Generating Visualizations...")
+            if fragility_data and "drops" in fragility_data:
+                plot_fragility_drop(fragility_data.get("baseline_score", accuracy), fragility_data["drops"])
+                print("   Saved -> reports/fragility_drop.png")
+            
+            if drift_data:
+                for feature, metrics in drift_data.items():
+                    if metrics.get("drift_detected", False):
+                        try: # Catch in case df_train/test scope is lost
+                           plot_drift_histogram(pd.read_csv(args.train_data), X_test, feature)
+                           print(f"   Saved -> reports/drift_{feature}.png")
+                        except:
+                           pass
         
         # Output Results
         print("==================================================")
