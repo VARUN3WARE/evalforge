@@ -33,6 +33,53 @@ pip install -r requirements.txt
 
 ---
 
+## 🚀 Quick Start & Usage
+
+EvalForge works directly from your terminal.
+
+```bash
+evalforge analyze \
+  --model my_trained_model.pkl \
+  --data test_dataset.csv \
+  --target "target_column_name" \
+  --train-data train_dataset.csv \
+  --visualize
+```
+
+- `--model`: Your serialized scikit-learn model.
+- `--data`: Your testing dataset.
+- `--target`: The label column to predict.
+- `--train-data` (Optional): Training dataset used to detect data drift.
+- `--visualize` (Optional): Generates beautiful intuitive PNGs of drift and fragility inside a `reports/` folder.
+
+---
+
+## 🏆 The "Accuracy Is A Lie" Demo
+
+To see exactly why EvalForge exists, run our demo script. It trains a model that hits ~90% accuracy, but suffers from severe hidden data drift.
+
+1. Generate the illusion:
+   ```bash
+   python demo.py
+   ```
+2. Expose the truth:
+   ```bash
+   evalforge analyze --model demo_model.pkl --data demo_test.csv --target target --train-data demo_train.csv --visualize
+   ```
+*Accuracy said ship it. EvalForge said not yet.*
+
+---
+
+## 🔮 Post-Hackathon Roadmap
+
+While EvalForge is currently an MVP, our long-term open-source vision includes:
+- **Fairness Metrics:** Bias detection across protected attributes.
+- **Cross-Dataset Generalization:** Automated testing on multiple OOD datasets.
+- **Plugin Architecture:** Allow developers to easily inject custom diagnostic tests.
+- **Web Dashboard:** A full React/Next.js UI to replace the CLI for enterprise use.
+
+---
+
 ## Developer Guide (For Phase 3 & Beyond)
 
 If you are picking up development from here, follow these steps to keep everything building correctly:
