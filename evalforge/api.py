@@ -12,7 +12,7 @@ class ModelAuditor:
     Because making users drop into bash just to evaluate a model is slightly tyrannical :)
     """
     
-    def __init__(self, model, target_col="target"):
+    def __init__(self, model, target_col="target", task_type="classification"):
         """
         Initializes the auditor.
         
@@ -25,6 +25,7 @@ class ModelAuditor:
             
         self.model = model
         self.target_col = target_col
+        self.task_type = task_type
         self.health_score_data_ = None
         self.mismatch_data_ = None
         self.fragility_data_ = None
@@ -67,8 +68,12 @@ class ModelAuditor:
                 pass # Model said no
                 
         # 1. Base Metrics
-        metrics = calculate_metrics(y_true, y_pred, y_prob)
-        self.accuracy_ = metrics.get("accuracy", 0.0)
+        metrics = calculate_metrics(y_true, y_pred, y_prob, task_type=self.task_type)
+        if self.task_type == "regression":
+            # For regression, we might proxy accuracy using R2 bound between 0-1 for health score
+            self.accuracy_ = max(0.0, metrics.get("r2_score", 0.0))
+        else:
+            self.accuracy_ = metrics.get("accuracy", 0.0)
         
         # 2. Calibration Mismatch
         if y_prob is not None:

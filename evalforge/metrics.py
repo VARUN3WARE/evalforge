@@ -1,7 +1,7 @@
 import numpy as np
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, roc_auc_score, r2_score, mean_absolute_error, mean_squared_error
 
-def calculate_metrics(y_true, y_pred, y_prob=None):
+def calculate_metrics(y_true, y_pred, y_prob=None, task_type="classification"):
     """
     Calculates the foundational classification metrics because accuracy alone 
     is a lie we tell ourselves to sleep at night :)
@@ -21,6 +21,13 @@ def calculate_metrics(y_true, y_pred, y_prob=None):
     # Convert inputs to numpy arrays just in case some rogue developer passes a tuple or a generator
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
+    
+    if task_type == "regression":
+        return {
+            "r2_score": float(r2_score(y_true, y_pred)),
+            "mae": float(mean_absolute_error(y_true, y_pred)),
+            "rmse": float(np.sqrt(mean_squared_error(y_true, y_pred)))
+        }
     
     metrics = {
         "accuracy": float(accuracy_score(y_true, y_pred)),
