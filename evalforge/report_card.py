@@ -1,4 +1,4 @@
-def generate_report_card(health_score_data, mismatch_data=None, drift_data=None, fragility_data=None):
+def generate_report_card(health_score_data, mismatch_data=None, drift_data=None, fragility_data=None, fairness_data=None):
     """
     Generates a structured narrative report because nobody wants to read 
     raw JSON when the model goes off the rails :)
@@ -63,6 +63,11 @@ def generate_report_card(health_score_data, mismatch_data=None, drift_data=None,
         if drifted_count > 0:
             flags.append(f"Distribution drift detected in {drifted_count} features.")
 
+    # 5. Fairness Flag
+    if fairness_data and fairness_data.get("bias_detected", False):
+        penalty = fairness_data.get("bias_penalty", 0.0)
+        flags.append(f"CRITICAL: Discriminatory bias detected across demographic groups (-{penalty:.1f} penalty).")
+
     # Build Recommendations
     recommendations = []
     if acc < 80:
@@ -73,6 +78,8 @@ def generate_report_card(health_score_data, mismatch_data=None, drift_data=None,
         recommendations.append("- Train with data augmentation or adversarial examples to improve robustness.")
     if drifted_count > 0:
         recommendations.append("- Retrain the model on recent data and investigate upstream data pipelines.")
+    if fairness_data and fairness_data.get("bias_detected", False):
+        recommendations.append("- Audit training data for historical bias and implement fairness constraints during training.")
         
     if not recommendations:
         recommendations.append("- Ship it. It's beautiful.")

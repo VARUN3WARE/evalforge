@@ -5,6 +5,7 @@ from evalforge.fragility import calculate_adversarial_fragility
 from evalforge.drift import detect_drift
 from evalforge.health_score import compute_health_score
 from evalforge.report_card import generate_report_card
+from evalforge.fairness import evaluate_fairness
 
 class ModelAuditor:
     """
@@ -31,6 +32,7 @@ class ModelAuditor:
         self.fragility_data_ = None
         self.drift_data_ = None
         self.accuracy_ = None
+        self.fairness_data_ = None
         
     def _extract_xy(self, df):
         """Helper to safely split out target from features."""
@@ -43,7 +45,7 @@ class ModelAuditor:
             raise TypeError("Inputs must be pandas DataFrames.")
         return X, y
 
-    def evaluate(self, df_test, df_train=None, run_fragility=True):
+    def evaluate(self, df_test, df_train=None, run_fragility=True, sensitive_col=None):
         """
         Runs the full suite of EvalForge diagnostics on the model.
         
@@ -51,6 +53,7 @@ class ModelAuditor:
             df_test (pd.DataFrame): The test dataset to evaluate against.
             df_train (pd.DataFrame, optional): The training dataset, needed to detect drift.
             run_fragility (bool): Whether to run adversarial perturbation tests (can be slow).
+            sensitive_col (str, optional): The column to check for demographic bias.
             
         Returns:
             dict: The final Health Score dictionary (so you don't have to parse text).
@@ -88,6 +91,12 @@ class ModelAuditor:
             X_train, _ = self._extract_xy(df_train)
             self.drift_data_ = detect_drift(X_train, X_test)
             
+        # 4.5. Fairness constraints
+        bias_penalty = 0.0
+        if sensitive_col is not None:
+             self.fairness_data_ = evaluate_fairness(df_test, y_pred, sensitive_col)
+             bias_penalty = self.fairness_data_.get("bias_penalty", 0.0)
+            
         # 5. Bring it all together
         mismatch_rate = self.mismatch_data_["mismatch_rate"] if self.mismatch_data_ else None
         fragility_score = self.fragility_data_["fragility_score"] if self.fragility_data_ else None
@@ -96,7 +105,8 @@ class ModelAuditor:
             accuracy_metric=self.accuracy_,
             mismatch_rate=mismatch_rate,
             fragility_score=fragility_score,
-            drift_report=self.drift_data_
+            drift_report=self.drift_data_,
+            bias_penalty=bias_penalty
         )
         
         return self.health_score_data_

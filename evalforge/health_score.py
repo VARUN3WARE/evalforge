@@ -4,6 +4,7 @@ def compute_health_score(
     fragility_score=None,
     drift_report=None,
     stability_score=None,
+    bias_penalty=0.0
 ):
     """
     Computes the final Model Health Score (0-100).
@@ -79,6 +80,8 @@ def compute_health_score(
     for name in component_scores:
         proportional_weight = weights[name] / active_weights
         final_score += component_scores[name] * proportional_weight
+        
+    final_score = max(0.0, final_score - bias_penalty)
         
     return {
         "health_score": round(final_score, 2),

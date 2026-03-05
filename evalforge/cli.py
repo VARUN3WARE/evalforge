@@ -9,6 +9,7 @@ from evalforge.fragility import calculate_adversarial_fragility
 from evalforge.health_score import compute_health_score
 from evalforge.report_card import generate_report_card
 from evalforge.visualize import plot_fragility_drop, plot_drift_histogram
+from evalforge.fairness import evaluate_fairness
 
 def load_pkl(path):
     with open(path, "rb") as f:
@@ -29,6 +30,7 @@ def main():
     analyze_parser.add_argument("--target", type=str, required=True, help="Target column name")
     analyze_parser.add_argument("--train-data", type=str, required=False, help="Optional: Path to training dataset .csv for drift detection")
     analyze_parser.add_argument("--visualize", action="store_true", help="Generate and save PNG plots to reports/ directory")
+    analyze_parser.add_argument("--sensitive-col", type=str, required=False, help="Column name to check for demographic bias")
     
     args = parser.parse_args()
     
@@ -91,7 +93,15 @@ def main():
             except Exception as e:
                 print(f"⚠️ Failed to load training data for drift: {e}")
                 
-        # 6. Compute Health Score
+        # 6. Fairness Evaluation
+        print("⚖️  Evaluating Algorithmic Bias...")
+        fairness_data = None
+        if args.sensitive_col:
+            fairness_data = evaluate_fairness(df_test, y_pred, args.sensitive_col)
+            if fairness_data.get("bias_detected", False):
+                print(f"   ⚠️ Bias Detected! Penalty: {fairness_data['bias_penalty']:.1f}")
+                
+        # 7. Compute Health Score
         print("❤️  Calculating Health Score...")
         mismatch_rate = mismatch_data["mismatch_rate"] if mismatch_data else None
         fragility_score = fragility_data["fragility_score"] if fragility_data else None
@@ -100,12 +110,13 @@ def main():
             accuracy_metric=accuracy,
             mismatch_rate=mismatch_rate,
             fragility_score=fragility_score,
-            drift_report=drift_data
+            drift_report=drift_data,
+            bias_penalty=fairness_data.get("bias_penalty", 0.0) if fairness_data else 0.0
         )
         
-        # 7. Generate Reporting Layer
+        # 8. Generate Reporting Layer
         print("✅ Analysis Complete. Generating Report...\n")
-        report = generate_report_card(health_score_data, mismatch_data, drift_data, fragility_data)
+        report = generate_report_card(health_score_data, mismatch_data, drift_data, fragility_data, fairness_data)
         
         # 8. Visulization dump
         if args.visualize:
