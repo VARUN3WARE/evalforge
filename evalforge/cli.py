@@ -1,6 +1,7 @@
 import argparse
 import pickle
 import pandas as pd
+import sys
 from evalforge.metrics import calculate_metrics
 from evalforge.bootstrap import compute_bootstrap_ci
 from evalforge.drift import detect_drift
@@ -33,6 +34,7 @@ def main():
     analyze_parser.add_argument("--visualize", action="store_true", help="Generate and save PNG plots to reports/ directory")
     analyze_parser.add_argument("--sensitive-col", type=str, required=False, help="Column name to check for demographic bias")
     analyze_parser.add_argument("--export-html", action="store_true", help="Export the diagnostic report and any visuals to a standalone HTML file")
+    analyze_parser.add_argument("--fail-under", type=float, required=False, help="Fail the CI pipeline (exit 1) if Health Score is below this threshold")
     
     args = parser.parse_args()
     
@@ -153,6 +155,15 @@ def main():
                     
             html_path = generate_html_report(report, png_paths)
             print(f"   Saved -> {html_path}")
+            
+        # 10. CI/CD Gatekeeper Check
+        if args.fail_under is not None:
+            final_score = health_score_data["health_score"]
+            if final_score < args.fail_under:
+                print(f"🛑 CI/CD Pipeline Failed: Model Health Score ({final_score}) is below the threshold ({args.fail_under}).")
+                sys.exit(1)
+            else:
+                print(f"✅ CI/CD Pipeline Passed: Model Health Score ({final_score}) meets the threshold ({args.fail_under}).")
 
 if __name__ == "__main__":
     main()
