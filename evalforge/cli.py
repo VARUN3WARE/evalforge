@@ -10,6 +10,7 @@ from evalforge.health_score import compute_health_score
 from evalforge.report_card import generate_report_card
 from evalforge.visualize import plot_fragility_drop, plot_drift_histogram
 from evalforge.fairness import evaluate_fairness
+from evalforge.exports import generate_html_report
 
 def load_pkl(path):
     with open(path, "rb") as f:
@@ -31,6 +32,7 @@ def main():
     analyze_parser.add_argument("--train-data", type=str, required=False, help="Optional: Path to training dataset .csv for drift detection")
     analyze_parser.add_argument("--visualize", action="store_true", help="Generate and save PNG plots to reports/ directory")
     analyze_parser.add_argument("--sensitive-col", type=str, required=False, help="Column name to check for demographic bias")
+    analyze_parser.add_argument("--export-html", action="store_true", help="Export the diagnostic report and any visuals to a standalone HTML file")
     
     args = parser.parse_args()
     
@@ -138,6 +140,19 @@ def main():
         print("==================================================")
         print(report)
         print("==================================================")
+        
+        # 9. HTML Export dump
+        if args.export_html:
+            print("📄 Generating HTML Report Card...")
+            png_paths = []
+            if args.visualize:
+                import os
+                report_dir = "reports"
+                if os.path.exists(report_dir):
+                    png_paths = [os.path.join(report_dir, f) for f in os.listdir(report_dir) if f.endswith(".png")]
+                    
+            html_path = generate_html_report(report, png_paths)
+            print(f"   Saved -> {html_path}")
 
 if __name__ == "__main__":
     main()

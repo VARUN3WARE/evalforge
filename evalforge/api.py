@@ -6,6 +6,7 @@ from evalforge.drift import detect_drift
 from evalforge.health_score import compute_health_score
 from evalforge.report_card import generate_report_card
 from evalforge.fairness import evaluate_fairness
+from evalforge.exports import generate_html_report
 
 class ModelAuditor:
     """
@@ -122,5 +123,20 @@ class ModelAuditor:
             self.health_score_data_, 
             self.mismatch_data_, 
             self.drift_data_, 
-            self.fragility_data_
+            self.fragility_data_,
+            self.fairness_data_
         )
+        
+    def export_report(self, output_path="reports/evalforge_report.html", png_paths=None):
+        """
+        Exports the internally generated report card to a beautiful HTML file.
+        
+        Args:
+            output_path (str): The destination path for the HTML file.
+            png_paths (list, optional): List of generated visualisation images to embed.
+            
+        Returns:
+            str: Path to the generated HTML file.
+        """
+        report_text = self.get_report()
+        return generate_html_report(report_text, png_paths=png_paths, output_path=output_path)
