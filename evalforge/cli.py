@@ -33,6 +33,7 @@ def main():
     analyze_parser.add_argument("--train-data", type=str, required=False, help="Optional: Path to training dataset .csv for drift detection")
     analyze_parser.add_argument("--visualize", action="store_true", help="Generate and save PNG plots to reports/ directory")
     analyze_parser.add_argument("--sensitive-col", type=str, required=False, help="Column name to check for demographic bias")
+    analyze_parser.add_argument("--stability-scores", type=str, required=False, help="Comma-separated list of float scores from multiple runs/seeds for stability analysis. Because consistency is key, even for models :)")
     analyze_parser.add_argument("--export-html", action="store_true", help="Export the diagnostic report and any visuals to a standalone HTML file")
     analyze_parser.add_argument("--fail-under", type=float, required=False, help="Fail the CI pipeline (exit 1) if Health Score is below this threshold")
     
@@ -105,6 +106,18 @@ def main():
             if fairness_data.get("bias_detected", False):
                 print(f"   ⚠️ Bias Detected! Penalty: {fairness_data['bias_penalty']:.1f}")
                 
+        # 6.5 Stability Scores (because we want our models to be emotionally stable)
+        stability_scores = None
+        stability_data = None
+        if args.stability_scores:
+            try:
+                stability_scores = [float(s.strip()) for s in args.stability_scores.split(',')]
+                from evalforge.stability import compute_stability_from_scores
+                stability_data = compute_stability_from_scores(stability_scores)
+            except ValueError:
+                print("❌ Invalid format for --stability-scores. Please provide a comma-separated list of numbers.")
+                return
+            
         # 7. Compute Health Score
         print("❤️  Calculating Health Score...")
         mismatch_rate = mismatch_data["mismatch_rate"] if mismatch_data else None
@@ -115,12 +128,13 @@ def main():
             mismatch_rate=mismatch_rate,
             fragility_score=fragility_score,
             drift_report=drift_data,
+            stability_score=stability_data["stability_score"] if stability_data else None,
             bias_penalty=fairness_data.get("bias_penalty", 0.0) if fairness_data else 0.0
         )
         
         # 8. Generate Reporting Layer
         print("✅ Analysis Complete. Generating Report...\n")
-        report = generate_report_card(health_score_data, mismatch_data, drift_data, fragility_data, fairness_data)
+        report = generate_report_card(health_score_data, mismatch_data, drift_data, fragility_data, fairness_data, stability_data)
         
         # 8. Visulization dump
         if args.visualize:

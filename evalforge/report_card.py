@@ -1,4 +1,4 @@
-def generate_report_card(health_score_data, mismatch_data=None, drift_data=None, fragility_data=None, fairness_data=None):
+def generate_report_card(health_score_data, mismatch_data=None, drift_data=None, fragility_data=None, fairness_data=None, stability_data=None):
     """
     Generates a structured narrative report because nobody wants to read 
     raw JSON when the model goes off the rails :)
@@ -8,6 +8,8 @@ def generate_report_card(health_score_data, mismatch_data=None, drift_data=None,
         mismatch_data (dict, optional): The output from `detect_confidence_accuracy_mismatch`.
         drift_data (dict, optional): The output from `detect_drift`.
         fragility_data (dict, optional): The output from `calculate_adversarial_fragility`.
+        fairness_data (dict, optional): The output from `evaluate_fairness`.
+        stability_data (dict, optional): The output from `compute_stability_from_scores` (model's emotional state).
 
     Returns:
         str: A nicely formatted markdown report card.
@@ -67,6 +69,17 @@ def generate_report_card(health_score_data, mismatch_data=None, drift_data=None,
     if fairness_data and fairness_data.get("bias_detected", False):
         penalty = fairness_data.get("bias_penalty", 0.0)
         flags.append(f"CRITICAL: Discriminatory bias detected across demographic groups (-{penalty:.1f} penalty).")
+        
+    # 6. Stability Flag (for models that can't make up their mind)
+    if stability_data:
+        stability_score = components.get("stability", 100.0)
+        if stability_score < 70:
+            flags.append(f"Model stability is low ({stability_score:.1f}%), indicating inconsistent performance across runs.")
+        elif stability_score < 90:
+            flags.append(f"Model stability is moderate ({stability_score:.1f}%), suggesting some variance in performance.")
+    else:
+        # We don't have stability data, so the model's consistency remains a mystery (or a secret talent).
+        pass
 
     # Build Recommendations
     recommendations = []
@@ -80,6 +93,8 @@ def generate_report_card(health_score_data, mismatch_data=None, drift_data=None,
         recommendations.append("- Retrain the model on recent data and investigate upstream data pipelines.")
     if fairness_data and fairness_data.get("bias_detected", False):
         recommendations.append("- Audit training data for historical bias and implement fairness constraints during training.")
+    if stability_data and components.get("stability", 100.0) < 90:
+        recommendations.append("- Investigate training procedure for non-determinism, fix random seeds, or improve model architecture.")
         
     if not recommendations:
         recommendations.append("- Ship it. It's beautiful.")
@@ -102,8 +117,11 @@ def generate_report_card(health_score_data, mismatch_data=None, drift_data=None,
         report += f"- Drift Detected: {drifted_count} features\n"
     if mismatch_data:
         report += f"- High-Confidence Errors: {mismatch_data.get('mismatch_count', 0)}\n"
+    if stability_data:
+        report += f"- Stability Score: {stability_data.get('stability_score', 0.0):.1f}%\n" # The model's inner peace level
         
     report += "\n#### Recommendations:\n"
     report += "\n".join(recommendations)
     
     return report
+

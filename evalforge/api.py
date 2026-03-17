@@ -3,6 +3,7 @@ from evalforge.metrics import calculate_metrics
 from evalforge.mismatch import detect_confidence_accuracy_mismatch
 from evalforge.fragility import calculate_adversarial_fragility
 from evalforge.drift import detect_drift
+from evalforge.stability import compute_stability_from_scores # For when your model needs a little therapy to deal with change :)
 from evalforge.health_score import compute_health_score
 from evalforge.report_card import generate_report_card
 from evalforge.fairness import evaluate_fairness
@@ -34,6 +35,7 @@ class ModelAuditor:
         self.drift_data_ = None
         self.accuracy_ = None
         self.fairness_data_ = None
+        self.stability_data_ = None # We're also tracking how calm the model is :)
         
     def _extract_xy(self, df):
         """Helper to safely split out target from features."""
@@ -46,7 +48,7 @@ class ModelAuditor:
             raise TypeError("Inputs must be pandas DataFrames.")
         return X, y
 
-    def evaluate(self, df_test, df_train=None, run_fragility=True, sensitive_col=None):
+    def evaluate(self, df_test, df_train=None, run_fragility=True, sensitive_col=None, stability_scores=None):
         """
         Runs the full suite of EvalForge diagnostics on the model.
         
@@ -55,6 +57,8 @@ class ModelAuditor:
             df_train (pd.DataFrame, optional): The training dataset, needed to detect drift.
             run_fragility (bool): Whether to run adversarial perturbation tests (can be slow).
             sensitive_col (str, optional): The column to check for demographic bias.
+            stability_scores (list, optional): A list of scores from multiple runs/seeds. 
+                                              Because even models have good days and bad days.
             
         Returns:
             dict: The final Health Score dictionary (so you don't have to parse text).
@@ -97,6 +101,16 @@ class ModelAuditor:
         if sensitive_col is not None:
              self.fairness_data_ = evaluate_fairness(df_test, y_pred, sensitive_col)
              bias_penalty = self.fairness_data_.get("bias_penalty", 0.0)
+             
+        # 4.7. Stability (because models need to be chill, not manic :)
+        stability_score = None
+        if stability_scores is not None:
+            self.stability_data_ = compute_stability_from_scores(stability_scores)
+            stability_score = self.stability_data_["stability_score"]
+        else:
+            # If no stability scores, we just assume the model is having a consistent day
+            # or we're just too lazy to check.
+            self.stability_data_ = None
             
         # 5. Bring it all together
         mismatch_rate = self.mismatch_data_["mismatch_rate"] if self.mismatch_data_ else None
@@ -107,6 +121,7 @@ class ModelAuditor:
             mismatch_rate=mismatch_rate,
             fragility_score=fragility_score,
             drift_report=self.drift_data_,
+            stability_score=stability_score, # Now with added zen for our models
             bias_penalty=bias_penalty
         )
         
@@ -124,7 +139,8 @@ class ModelAuditor:
             self.mismatch_data_, 
             self.drift_data_, 
             self.fragility_data_,
-            self.fairness_data_
+            self.fairness_data_,
+            self.stability_data_ # Pass along the model's emotional state
         )
         
     def export_report(self, output_path="reports/evalforge_report.html", png_paths=None):
