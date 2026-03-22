@@ -4,6 +4,7 @@ def compute_health_score(
     fragility_score=None,
     drift_report=None,
     stability_score=None,
+    blind_spot_data=None,
     bias_penalty=0.0
 ):
     """
@@ -11,11 +12,12 @@ def compute_health_score(
     Because accuracy alone is a metric that hides its flaws under a trench coat :)
     
     Weights:
-    - Base accuracy: 40%
+    - Base accuracy: 35%
     - Calibration / mismatch: 15%
-    - Fragility score: 20%
+    - Fragility score: 15%
     - Drift score: 15%
     - Stability score: 10%
+    - Blind spot score: 10%
     
     If an optional component is missing, its weight is distributed proportionally 
     to the available components so we don't unfairly penalize the model for our laziness.
@@ -26,6 +28,8 @@ def compute_health_score(
         fragility_score (float, optional): Fragility score (0 to 100).
         drift_report (dict, optional): Drift report dictionary from detect_drift.
         stability_score (float, optional): Stability score (0 to 100).
+        blind_spot_data (dict, optional): Blind spot analysis from map_blind_spots.
+        bias_penalty (float): Final deduction for discriminatory behavior.
 
     Returns:
         dict: Final health score and individual component scores (all 0-100).
@@ -45,14 +49,24 @@ def compute_health_score(
             drift_score = (1.0 - (drifted_features / total_features)) * 100.0
         else:
             drift_score = 100.0
+
+    blind_spot_score = None
+    if blind_spot_data:
+        total_clusters = blind_spot_data.get("n_clusters", 1)
+        blind_spot_count = len(blind_spot_data.get("blind_spot_clusters", []))
+        if total_clusters > 0:
+            blind_spot_score = (1.0 - (blind_spot_count / total_clusters)) * 100.0
+        else:
+            blind_spot_score = 100.0
             
     # Base Weights defined in plan
     weights = {
-        "accuracy": 0.40,
+        "accuracy": 0.35,
         "calibration": 0.15,
-        "fragility": 0.20,
+        "fragility": 0.15,
         "drift": 0.15,
-        "stability": 0.10
+        "stability": 0.10,
+        "blind_spots": 0.10
     }
     
     components = {
@@ -60,7 +74,8 @@ def compute_health_score(
         "calibration": calib_score,
         "fragility": fragility_score,
         "drift": drift_score,
-        "stability": stability_score
+        "stability": stability_score,
+        "blind_spots": blind_spot_score
     }
     
     active_weights = 0.0

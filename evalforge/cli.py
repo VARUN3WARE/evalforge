@@ -7,6 +7,7 @@ from evalforge.bootstrap import compute_bootstrap_ci
 from evalforge.drift import detect_drift
 from evalforge.mismatch import detect_confidence_accuracy_mismatch
 from evalforge.fragility import calculate_adversarial_fragility
+from evalforge.blind_spots import map_blind_spots # Checking the model's peripheral vision :)
 from evalforge.health_score import compute_health_score
 from evalforge.report_card import generate_report_card
 from evalforge.visualize import plot_fragility_drop, plot_drift_histogram
@@ -33,7 +34,8 @@ def main():
     analyze_parser.add_argument("--train-data", type=str, required=False, help="Optional: Path to training dataset .csv for drift detection")
     analyze_parser.add_argument("--visualize", action="store_true", help="Generate and save PNG plots to reports/ directory")
     analyze_parser.add_argument("--sensitive-col", type=str, required=False, help="Column name to check for demographic bias")
-    analyze_parser.add_argument("--stability-scores", type=str, required=False, help="Comma-separated list of float scores from multiple runs/seeds for stability analysis. Because consistency is key, even for models :)")
+    analyze_parser.add_argument("--stability", type=str, required=False, help="Comma-separated list of float scores from multiple runs/seeds for stability analysis.")
+    analyze_parser.add_argument("--blind-spots", action="store_true", help="Trigger cluster-wise blind spot analysis to find hidden weak regions.")
     analyze_parser.add_argument("--export-html", action="store_true", help="Export the diagnostic report and any visuals to a standalone HTML file")
     analyze_parser.add_argument("--fail-under", type=float, required=False, help="Fail the CI pipeline (exit 1) if Health Score is below this threshold")
     
@@ -87,6 +89,12 @@ def main():
              
         print("💥 Testing Fragility...")
         fragility_data = calculate_adversarial_fragility(model, X_test, y_true)
+
+        # 5.5 Blind Spot Detection (finding where the model is playing hide and seek :)
+        blind_spots_data = None
+        if args.blind_spots:
+            print("🔍 Mapping Blind Spots...")
+            blind_spots_data = map_blind_spots(X_test, y_true, y_pred)
         
         print("🌊 Checking for Drift...")
         drift_data = None
@@ -107,15 +115,14 @@ def main():
                 print(f"   ⚠️ Bias Detected! Penalty: {fairness_data['bias_penalty']:.1f}")
                 
         # 6.5 Stability Scores (because we want our models to be emotionally stable)
-        stability_scores = None
         stability_data = None
-        if args.stability_scores:
+        if args.stability:
             try:
-                stability_scores = [float(s.strip()) for s in args.stability_scores.split(',')]
+                stability_scores = [float(s.strip()) for s in args.stability.split(',')]
                 from evalforge.stability import compute_stability_from_scores
                 stability_data = compute_stability_from_scores(stability_scores)
             except ValueError:
-                print("❌ Invalid format for --stability-scores. Please provide a comma-separated list of numbers.")
+                print("❌ Invalid format for --stability. Please provide a comma-separated list of numbers.")
                 return
             
         # 7. Compute Health Score
@@ -129,12 +136,21 @@ def main():
             fragility_score=fragility_score,
             drift_report=drift_data,
             stability_score=stability_data["stability_score"] if stability_data else None,
+            blind_spot_data=blind_spots_data, # Now with added peripheral vision! :)
             bias_penalty=fairness_data.get("bias_penalty", 0.0) if fairness_data else 0.0
         )
         
         # 8. Generate Reporting Layer
         print("✅ Analysis Complete. Generating Report...\n")
-        report = generate_report_card(health_score_data, mismatch_data, drift_data, fragility_data, fairness_data, stability_data)
+        report = generate_report_card(
+            health_score_data, 
+            mismatch_data, 
+            drift_data, 
+            fragility_data, 
+            fairness_data, 
+            stability_data,
+            blind_spots_data
+        )
         
         # 8. Visulization dump
         if args.visualize:

@@ -4,6 +4,7 @@ from evalforge.mismatch import detect_confidence_accuracy_mismatch
 from evalforge.fragility import calculate_adversarial_fragility
 from evalforge.drift import detect_drift
 from evalforge.stability import compute_stability_from_scores # For when your model needs a little therapy to deal with change :)
+from evalforge.blind_spots import map_blind_spots # Finding the model's "uh-oh" zones :)
 from evalforge.health_score import compute_health_score
 from evalforge.report_card import generate_report_card
 from evalforge.fairness import evaluate_fairness
@@ -36,6 +37,7 @@ class ModelAuditor:
         self.accuracy_ = None
         self.fairness_data_ = None
         self.stability_data_ = None # We're also tracking how calm the model is :)
+        self.blind_spots_data_ = None # Hidden regions where our model might be sight-impaired :)
         
     def _extract_xy(self, df):
         """Helper to safely split out target from features."""
@@ -48,7 +50,7 @@ class ModelAuditor:
             raise TypeError("Inputs must be pandas DataFrames.")
         return X, y
 
-    def evaluate(self, df_test, df_train=None, run_fragility=True, sensitive_col=None, stability_scores=None):
+    def evaluate(self, df_test, df_train=None, run_fragility=True, run_blind_spots=True, sensitive_col=None, stability_scores=None):
         """
         Runs the full suite of EvalForge diagnostics on the model.
         
@@ -56,6 +58,7 @@ class ModelAuditor:
             df_test (pd.DataFrame): The test dataset to evaluate against.
             df_train (pd.DataFrame, optional): The training dataset, needed to detect drift.
             run_fragility (bool): Whether to run adversarial perturbation tests (can be slow).
+            run_blind_spots (bool): Whether to run cluster-wise blind spot analysis.
             sensitive_col (str, optional): The column to check for demographic bias.
             stability_scores (list, optional): A list of scores from multiple runs/seeds. 
                                               Because even models have good days and bad days.
@@ -91,6 +94,10 @@ class ModelAuditor:
         if run_fragility:
             self.fragility_data_ = calculate_adversarial_fragility(self.model, X_test, y_true)
             
+        # 3.5 Blind Spot Detection (because models have dark corners they don't like to talk about :)
+        if run_blind_spots:
+            self.blind_spots_data_ = map_blind_spots(X_test, y_true, y_pred)
+            
         # 4. Drift detection
         if df_train is not None:
             X_train, _ = self._extract_xy(df_train)
@@ -122,6 +129,7 @@ class ModelAuditor:
             fragility_score=fragility_score,
             drift_report=self.drift_data_,
             stability_score=stability_score, # Now with added zen for our models
+            blind_spot_data=self.blind_spots_data_, # Accounting for those pesky hidden clusters :)
             bias_penalty=bias_penalty
         )
         
@@ -140,7 +148,8 @@ class ModelAuditor:
             self.drift_data_, 
             self.fragility_data_,
             self.fairness_data_,
-            self.stability_data_ # Pass along the model's emotional state
+            self.stability_data_, # Pass along the model's emotional state
+            self.blind_spots_data_ # Pass along the model's blind spots
         )
         
     def export_report(self, output_path="reports/evalforge_report.html", png_paths=None):

@@ -1,4 +1,4 @@
-def generate_report_card(health_score_data, mismatch_data=None, drift_data=None, fragility_data=None, fairness_data=None, stability_data=None):
+def generate_report_card(health_score_data, mismatch_data=None, drift_data=None, fragility_data=None, fairness_data=None, stability_data=None, blind_spots_data=None):
     """
     Generates a structured narrative report because nobody wants to read 
     raw JSON when the model goes off the rails :)
@@ -10,6 +10,7 @@ def generate_report_card(health_score_data, mismatch_data=None, drift_data=None,
         fragility_data (dict, optional): The output from `calculate_adversarial_fragility`.
         fairness_data (dict, optional): The output from `evaluate_fairness`.
         stability_data (dict, optional): The output from `compute_stability_from_scores` (model's emotional state).
+        blind_spots_data (dict, optional): The output from `map_blind_spots`.
 
     Returns:
         str: A nicely formatted markdown report card.
@@ -77,9 +78,13 @@ def generate_report_card(health_score_data, mismatch_data=None, drift_data=None,
             flags.append(f"Model stability is low ({stability_score:.1f}%), indicating inconsistent performance across runs.")
         elif stability_score < 90:
             flags.append(f"Model stability is moderate ({stability_score:.1f}%), suggesting some variance in performance.")
-    else:
-        # We don't have stability data, so the model's consistency remains a mystery (or a secret talent).
-        pass
+
+    # 7. Blind Spot Flag
+    blind_spot_count = 0
+    if blind_spots_data:
+        blind_spot_count = len(blind_spots_data.get("blind_spot_clusters", []))
+        if blind_spot_count > 0:
+            flags.append(f"Model has {blind_spot_count} performance blind spots identified by clustering.")
 
     # Build Recommendations
     recommendations = []
@@ -95,6 +100,8 @@ def generate_report_card(health_score_data, mismatch_data=None, drift_data=None,
         recommendations.append("- Audit training data for historical bias and implement fairness constraints during training.")
     if stability_data and components.get("stability", 100.0) < 90:
         recommendations.append("- Investigate training procedure for non-determinism, fix random seeds, or improve model architecture.")
+    if blind_spot_count > 0:
+        recommendations.append("- Inspect features of low-performing clusters to identify missing data or edge cases.")
         
     if not recommendations:
         recommendations.append("- Ship it. It's beautiful.")
@@ -117,8 +124,24 @@ def generate_report_card(health_score_data, mismatch_data=None, drift_data=None,
         report += f"- Drift Detected: {drifted_count} features\n"
     if mismatch_data:
         report += f"- High-Confidence Errors: {mismatch_data.get('mismatch_count', 0)}\n"
+    
+    # Stability Section
     if stability_data:
-        report += f"- Stability Score: {stability_data.get('stability_score', 0.0):.1f}%\n" # The model's inner peace level
+        report += "\n#### Stability Analysis:\n"
+        report += f"- **Stability Score**: {stability_data.get('stability_score', 0.0):.1f}%\n"
+        report += f"- **Mean Performance**: {stability_data.get('mean_score', 0.0):.4f}\n"
+        report += f"- **Standard Deviation**: {stability_data.get('std', 0.0):.4f}\n"
+        
+    # Blind Spots Section
+    if blind_spots_data:
+        report += "\n#### Cluster-wise Blind Spots:\n"
+        report += f"- **Total Clusters**: {blind_spots_data.get('n_clusters', 0)}\n"
+        report += f"- **Blind Spots Detected**: {blind_spot_count}\n"
+        
+        cluster_report = blind_spots_data.get("cluster_report", {})
+        for cid, info in cluster_report.items():
+            if info.get("blind_spot", False):
+                report += f"  - `{cid}`: Accuracy {info.get('accuracy', 0.0):.2f} (Size: {info.get('size', 0)})\n"
         
     report += "\n#### Recommendations:\n"
     report += "\n".join(recommendations)
