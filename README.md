@@ -2,26 +2,22 @@
 
 An Open-Source Model Health & Evaluation Intelligence Engine
 
-EvalForge is a pre-deployment reliability engine for machine learning models.  
-It evaluates robustness, calibration, drift, stability, and hidden failure modes, summarized into a unified Model Health Score (0-100).
+EvalForge is a pre-deployment reliability engine for machine learning models. It evaluates robustness, calibration, drift, stability, and hidden failure modes, summarized into a unified Model Health Score (0-100).
 
 ---
 
-## Why EvalForge?
+## Current Capabilities
 
-Accuracy alone is not enough. A model with 94% accuracy may still be poorly calibrated, collapse under slight noise, drift in production, show high variance, or produce highly confident wrong predictions. EvalForge detects these risks before deployment.
-
----
-
-## Core Features (v0.1)
-
-- Model Health Score (0-100)
-- Bootstrap Confidence Intervals
-- Confidence-Accuracy Mismatch Detection
-- Adversarial Fragility Score
-- Drift Detection (KS test)
-- Seed Stability Testing
-- Automated Evaluation Report Card
+- Model Health Score (0-100): Weighted analysis across accuracy, calibration, fragility, drift, stability, and blind spots.
+- Python API (ModelAuditor): Clean, object-oriented interface for orchestrating evaluations programmatically.
+- CLI Analysis: Robust command-line tool with flags for stability and cluster-wise blind spot mapping.
+- Diagnostics Layer:
+  - Confidence-Accuracy Mismatch Detection.
+  - Adversarial Fragility Scoring.
+  - Distribution Drift Detection (KS test).
+  - Seed Stability Analysis (Mean/Std across runs).
+  - Cluster-wise Blind Spot Mapping (K-Means).
+- Reporting: Structured markdown report cards and shareable HTML exports with visual evidence.
 
 ---
 
@@ -33,85 +29,68 @@ pip install -r requirements.txt
 
 ---
 
-## 🚀 Quick Start & Usage
+## Quick Start
 
-EvalForge works directly from your terminal.
+### Python API Usage
+
+```python
+from evalforge.api import ModelAuditor
+import pandas as pd
+import pickle
+
+# Load your model and data
+with open("model.pkl", "rb") as f:
+    model = pickle.load(f)
+df_test = pd.read_csv("test_data.csv")
+
+# Initialize and evaluate
+auditor = ModelAuditor(model, target_col="target")
+health_score = auditor.evaluate(df_test, run_blind_spots=True)
+
+# Generate and export report
+report = auditor.get_report()
+auditor.export_report("reports/my_report.html")
+```
+
+### CLI Usage
 
 ```bash
 evalforge analyze \
-  --model my_trained_model.pkl \
-  --data test_dataset.csv \
-  --target "target_column_name" \
-  --train-data train_dataset.csv \
-  --visualize
+  --model model.pkl \
+  --data test.csv \
+  --target "target" \
+  --stability "0.91,0.89,0.92" \
+  --blind-spots \
+  --export-html
 ```
 
-- `--model`: Your serialized scikit-learn model.
-- `--data`: Your testing dataset.
-- `--target`: The label column to predict.
-- `--train-data` (Optional): Training dataset used to detect data drift.
-- `--visualize` (Optional): Generates beautiful intuitive PNGs of drift and fragility inside a `reports/` folder.
+---
+
+## Next Steps
+
+1. Regression Support: Implementation of RMSE, MAE, and R-squared metrics in the metrics layer and residual-based mismatch detection.
+2. Fairness & Bias Evaluation: Calculation of metric disparity (Demographic Parity Ratio, Equal Opportunity Difference) and integrated bias penalties.
+3. CI/CD Integration: Finalizing GitHub Action templates to enforce health score thresholds during deployment pipelines.
+4. Technical Polish: Addition of full type hinting across the codebase and integration of the logging module for cleaner UI output.
 
 ---
 
-## 🏆 The "Accuracy Is A Lie" Demo
+## Developer Guide
 
-To see exactly why EvalForge exists, run our demo script. It trains a model that hits ~90% accuracy, but suffers from severe hidden data drift.
-
-1. Generate the illusion:
-   ```bash
-   python demo.py
-   ```
-2. Expose the truth:
-   ```bash
-   evalforge analyze --model demo_model.pkl --data demo_test.csv --target target --train-data demo_train.csv --visualize
-   ```
-*Accuracy said ship it. EvalForge said not yet.*
-
----
-
-## 🔮 Post-Hackathon Roadmap
-
-While EvalForge is currently an MVP, our long-term open-source vision includes:
-- **Fairness Metrics:** Bias detection across protected attributes.
-- **Cross-Dataset Generalization:** Automated testing on multiple OOD datasets.
-- **Plugin Architecture:** Allow developers to easily inject custom diagnostic tests.
-- **Web Dashboard:** A full React/Next.js UI to replace the CLI for enterprise use.
-
----
-
-## Developer Guide (For Phase 3 & Beyond)
-
-If you are picking up development from here, follow these steps to keep everything building correctly:
-
-### 1. Environment Setup
-
-We strongly recommend using `uv` for blistering fast environments:
+### Environment Setup
 
 ```bash
-# Create the virtual environment
-uv venv
-
-# Activate it
+python3 -m venv .venv
 source .venv/bin/activate
-
-# Install the dependencies
-uv pip install -r requirements.txt
+pip install -r requirements.txt
 ```
 
-### 2. Running Tests
-
-We use `pytest`. If tests are failing, please grab a coffee and fix them before opening a PR :)
+### Running Tests
 
 ```bash
-# Run all tests
-pytest tests/
+python3 -m pytest tests/
 ```
-
-### 3. Adding New Features
-
-Code should go in the `evalforge/` directory, and your tests should go in the `tests/` directory.
 
 - Please ensure your docstrings have a tiny, simple 1-line joke :)
 - Stick to the SOLID principles.
-- Don't use emojis in the main documentation.
+- Do not use emojis in the documentation.
