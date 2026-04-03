@@ -57,3 +57,45 @@ def detect_confidence_accuracy_mismatch(
         "mismatch_rate": mismatch_rate,
         "mismatch_indices": mismatch_indices.tolist(),
     }
+
+
+def detect_regression_mismatch(y_true, y_pred, std_threshold=2.0):
+    """
+    Detects samples where the model is severely wrong in a regression task.
+    Because sometimes a model is not just off, it's living in a different reality :)
+
+    Args:
+        y_true (list or np.array): Ground truth continuous values.
+        y_pred (list or np.array): Predicted continuous values.
+        std_threshold (float): Flag residuals > this many standard deviations of the residuals.
+
+    Returns:
+        dict: Summary containing counts, rate, and high-error indices.
+    """
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+
+    if len(y_true) != len(y_pred):
+        raise ValueError("y_true and y_pred must have the same length.")
+
+    residuals = np.abs(y_true - y_pred)
+    std_residuals = np.std(residuals)
+    
+    # Avoid division by zero if all residuals are the same
+    if std_residuals == 0:
+        high_error_mask = np.zeros_like(residuals, dtype=bool)
+    else:
+        high_error_mask = residuals > (std_threshold * std_residuals)
+        
+    mismatch_indices = np.where(high_error_mask)[0]
+    mismatch_count = int(np.sum(high_error_mask))
+    total_samples = int(len(y_true))
+    mismatch_rate = float(mismatch_count / total_samples) if total_samples else 0.0
+
+    return {
+        "total_samples": total_samples,
+        "mismatch_count": mismatch_count,
+        "mismatch_rate": mismatch_rate,
+        "mismatch_indices": mismatch_indices.tolist(),
+        "std_residuals": float(std_residuals)
+    }

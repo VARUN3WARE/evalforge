@@ -1,6 +1,6 @@
 import pandas as pd
 from evalforge.metrics import calculate_metrics
-from evalforge.mismatch import detect_confidence_accuracy_mismatch
+from evalforge.mismatch import detect_confidence_accuracy_mismatch, detect_regression_mismatch # Handling both loud wrong opinions and quiet large errors :)
 from evalforge.fragility import calculate_adversarial_fragility
 from evalforge.drift import detect_drift
 from evalforge.stability import compute_stability_from_scores # For when your model needs a little therapy to deal with change :)
@@ -23,6 +23,7 @@ class ModelAuditor:
         Args:
             model: A trained scikit-learn compatible model (must have `.predict()`).
             target_col (str): The name of the target variable column in the datasets.
+            task_type (str): Either "classification" or "regression".
         """
         if not hasattr(model, "predict"):
             raise TypeError("Provided model does not have a predict() method. What are you trying to test? :(")
@@ -72,7 +73,7 @@ class ModelAuditor:
         y_pred = self.model.predict(X_test)
         
         y_prob = None
-        if hasattr(self.model, "predict_proba"):
+        if self.task_type == "classification" and hasattr(self.model, "predict_proba"):
             try:
                 y_prob = self.model.predict_proba(X_test)
             except Exception:
@@ -86,9 +87,13 @@ class ModelAuditor:
         else:
             self.accuracy_ = metrics.get("accuracy", 0.0)
         
-        # 2. Calibration Mismatch
-        if y_prob is not None:
-            self.mismatch_data_ = detect_confidence_accuracy_mismatch(y_true, y_pred, y_prob)
+        # 2. Calibration Mismatch / Residual Analysis
+        if self.task_type == "classification":
+            if y_prob is not None:
+                self.mismatch_data_ = detect_confidence_accuracy_mismatch(y_true, y_pred, y_prob)
+        else:
+            # For regression, identify large residuals as "mismatches"
+            self.mismatch_data_ = detect_regression_mismatch(y_true, y_pred)
             
         # 3. Fragility
         if run_fragility:

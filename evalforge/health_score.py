@@ -12,8 +12,8 @@ def compute_health_score(
     Because accuracy alone is a metric that hides its flaws under a trench coat :)
     
     Weights:
-    - Base accuracy: 35%
-    - Calibration / mismatch: 15%
+    - Base accuracy (or R2 for regression): 35%
+    - Calibration / mismatch (or Residuals for regression): 15%
     - Fragility score: 15%
     - Drift score: 15%
     - Stability score: 10%
@@ -23,8 +23,8 @@ def compute_health_score(
     to the available components so we don't unfairly penalize the model for our laziness.
 
     Args:
-        accuracy_metric (float): Base accuracy (0.0 to 1.0).
-        mismatch_rate (float, optional): Rate of highly confident errors (0.0 to 1.0).
+        accuracy_metric (float): Base accuracy or R2 score (0.0 to 1.0).
+        mismatch_rate (float, optional): Rate of highly confident errors or large residuals (0.0 to 1.0).
         fragility_score (float, optional): Fragility score (0 to 100).
         drift_report (dict, optional): Drift report dictionary from detect_drift.
         stability_score (float, optional): Stability score (0 to 100).
